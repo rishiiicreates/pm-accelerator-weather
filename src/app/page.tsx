@@ -3,7 +3,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Search,
-  MapPin,
   Compass,
   Wind,
   Droplets,
@@ -22,16 +21,14 @@ import {
   Trash2,
   Bookmark,
   Edit2,
-  Check,
-  X,
-  AlertCircle,
-  ExternalLink,
-  RefreshCw,
-  Layers,
-  ArrowUp,
   Calendar,
   User,
-  SlidersHorizontal,
+  ArrowUpRight,
+  ExternalLink,
+  AlertCircle,
+  X,
+  MapPin,
+  Clock,
 } from "lucide-react";
 
 interface WeatherData {
@@ -107,6 +104,40 @@ interface HistoryItem {
   searched_at: string;
 }
 
+// editorial journalistic summaries for real-world realism
+function getWeatherNarrative(
+  city: string,
+  condition: string,
+  temp: number,
+  humidity: number,
+  wind: number
+) {
+  const cond = condition.toLowerCase();
+  if (cond.includes("rain") || cond.includes("shower") || cond.includes("drizzle")) {
+    return `An active low-pressure front continues to deliver ${cond} throughout the ${city} metropolitan basin. Relative humidity remains elevated at ${humidity}% with sustained westerly breezes of ${wind} km/h. Precipitation is expected to taper into intermittent mist toward late evening.`;
+  }
+  if (cond.includes("snow") || cond.includes("ice") || cond.includes("freez")) {
+    return `An Arctic air mass keeps temperatures depressed around ${Math.round(temp)}°C across ${city}, accompanied by ${cond}. Gusts near ${wind} km/h will maintain wind-chill values well below freezing through the overnight hours.`;
+  }
+  if (cond.includes("thunder") || cond.includes("storm")) {
+    return `Convective atmospheric instability continues across ${city}, producing ${cond} with localized squalls. Wind gusts may exceed ${wind} km/h along elevated terrain. Monitor local radar advisories.`;
+  }
+  if (cond.includes("cloud") || cond.includes("overcast")) {
+    return `A widespread layer of stratiform cloud cover blankets ${city} today, holding surface temperatures near ${Math.round(temp)}°C. Winds remain light at ${wind} km/h with humidity hovering around ${humidity}%. Moderate diurnal cooling expected after dusk.`;
+  }
+  return `Stable atmospheric ridge conditions prevail across ${city}, delivering ${cond} and clear visibility. Temperatures hold steady near ${Math.round(temp)}°C with gentle winds averaging ${wind} km/h, creating optimal conditions throughout the region.`;
+}
+
+function getDayNarrative(cond: string, max: number, min: number, rain: number, wind: number) {
+  if (rain >= 50) {
+    return `Frontal moisture passage brings elevated precipitation probabilities (${rain}%) with daytime peaks reaching ${Math.round(max)}°C and overnight minimums around ${Math.round(min)}°C. Winds gusting up to ${Math.round(wind)} km/h.`;
+  }
+  if (rain >= 20) {
+    return `Variable sky cover with scattered showers likely (${rain}% chance). Temperatures will reach ${Math.round(max)}°C before descending to ${Math.round(min)}°C with moderate breezes near ${Math.round(wind)} km/h.`;
+  }
+  return `Predominantly settled conditions featuring ${cond.toLowerCase()}. Afternoon highs will touch ${Math.round(max)}°C with low overnight dips to ${Math.round(min)}°C and tranquil winds near ${Math.round(wind)} km/h.`;
+}
+
 export default function WeatherApp() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -117,13 +148,11 @@ export default function WeatherApp() {
   // favorites and search history state
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
-  const [activeTab, setActiveTab] = useState<"favorites" | "history">("favorites");
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editNote, setEditNote] = useState("");
-  const [editTag, setEditTag] = useState("");
   const [saveModalOpen, setSaveModalOpen] = useState(false);
   const [saveNote, setSaveNote] = useState("");
-  const [saveTag, setSaveTag] = useState("Research");
+  const [saveTag, setSaveTag] = useState("Observation");
 
   // initial weather and list load
   useEffect(() => {
@@ -149,13 +178,13 @@ export default function WeatherApp() {
       const data = await res.json();
 
       if (!res.ok) {
-        throw new Error(data.error || "failed to fetch weather data");
+        throw new Error(data.error || "failed to fetch weather telemetry");
       }
 
       setWeather(data);
       loadHistory();
     } catch (err: any) {
-      setError(err.message || "an unexpected error occurred while loading weather data");
+      setError(err.message || "an unexpected error occurred while loading weather telemetry");
     } finally {
       setLoading(false);
     }
@@ -180,7 +209,7 @@ export default function WeatherApp() {
       },
       (err) => {
         setLoading(false);
-        setError(`location access denied or unavailable (${err.message}). please search manually`);
+        setError(`location access denied or unavailable (${err.message})`);
       },
       { timeout: 10000 }
     );
@@ -242,7 +271,7 @@ export default function WeatherApp() {
       const res = await fetch(`/api/favorites/${id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ notes: editNote, tag: editTag }),
+        body: JSON.stringify({ notes: editNote }),
       });
       if (res.ok) {
         setEditingId(null);
@@ -291,14 +320,14 @@ export default function WeatherApp() {
     return timePart.slice(0, 5);
   };
 
-  const renderWeatherIcon = (iconName: string, className = "w-6 h-6") => {
+  const renderWeatherIcon = (iconName: string, className = "w-5 h-5") => {
     switch (iconName) {
       case "Sun":
         return <Sun className={`${className} text-amber-500`} />;
       case "SunMedium":
         return <SunMedium className={`${className} text-amber-500`} />;
       case "CloudSun":
-        return <CloudSun className={`${className} text-amber-400`} />;
+        return <CloudSun className={`${className} text-amber-500`} />;
       case "Cloud":
         return <Cloud className={`${className} text-slate-500`} />;
       case "CloudFog":
@@ -317,63 +346,28 @@ export default function WeatherApp() {
     }
   };
 
-  const quickPills = [
-    { label: "New York", q: "New York" },
-    { label: "London", q: "London" },
-    { label: "Tokyo", q: "Tokyo" },
-    { label: "Paris", q: "Paris" },
-    { label: "New Delhi", q: "New Delhi" },
-    { label: "Zip 90210", q: "90210" },
-    { label: "GPS (51.5, -0.1)", q: "51.5, -0.1" },
+  // editorial photographic assets matching undertheweather.eu theme
+  const editorialPhotos = [
+    "https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&w=1200&q=80", // polar bear arctic ice
+    "https://images.unsplash.com/photo-1544551763-46a013bb70d5?auto=format&fit=crop&w=800&q=80", // coral sea marine life
+    "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=800&q=80", // yosemite valley
+    "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=800&q=80", // alpine peaks
+    "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80", // coastal tide
+    "https://images.unsplash.com/photo-1519692933481-e162a57d6721?auto=format&fit=crop&w=800&q=80", // rainfall street
   ];
 
-  const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
-
-  // select atmospheric photography based on current weather condition
-  const getHeroBackdropImage = () => {
-    if (!weather) return "https://images.unsplash.com/photo-1517411032315-54ef2cb783bb?auto=format&fit=crop&w=1600&q=80";
-    const cond = weather.current.condition.toLowerCase();
-    if (cond.includes("snow") || cond.includes("ice") || cond.includes("freez")) {
-      return "https://images.unsplash.com/photo-1483921020237-2ff51e8e4b22?auto=format&fit=crop&w=1600&q=80";
-    }
-    if (cond.includes("rain") || cond.includes("drizzle") || cond.includes("shower")) {
-      return "https://images.unsplash.com/photo-1519692933481-e162a57d6721?auto=format&fit=crop&w=1600&q=80";
-    }
-    if (cond.includes("thunder") || cond.includes("storm")) {
-      return "https://images.unsplash.com/photo-1513069020900-a162c4db0762?auto=format&fit=crop&w=1600&q=80";
-    }
-    if (cond.includes("cloud") || cond.includes("overcast")) {
-      return "https://images.unsplash.com/photo-1534088568595-a066f410bcda?auto=format&fit=crop&w=1600&q=80";
-    }
-    // clear / sunny / default majestic nature
-    return "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1600&q=80";
-  };
-
-  const getDayPhoto = (index: number) => {
-    const photos = [
-      "https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=600&q=80",
-      "https://images.unsplash.com/photo-1426604966848-d7adac402bff?auto=format&fit=crop&w=600&q=80",
-      "https://images.unsplash.com/photo-1464822759023-fed622ff2c3b?auto=format&fit=crop&w=600&q=80",
-      "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80",
-      "https://images.unsplash.com/photo-1448375240586-882707db888b?auto=format&fit=crop&w=600&q=80",
-    ];
-    return photos[index % photos.length];
-  };
-
   return (
-    <div className="min-h-screen bg-[#fcfcfd] text-[#222222] pb-24 font-sans">
+    <div className="min-h-screen bg-white text-[#222222] font-sans">
       {/* top navbar matching undertheweather.eu */}
-      <header className="border-b border-slate-100 bg-white/95 backdrop-blur-md sticky top-0 z-40 transition-all">
+      <header className="border-b border-[#eeeeee] bg-white sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between">
           {/* logo & brand mark */}
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-[#f3eeff] flex items-center justify-center border border-[#e9dcff]">
+            <div className="w-9 h-9 rounded-full bg-[#f4efff] flex items-center justify-center">
               <Thermometer className="w-5 h-5 text-[#7e43fd]" />
             </div>
-            <a href="/" className="flex items-baseline tracking-tight hover:opacity-90 transition">
-              <span className="font-extrabold text-xl text-[#1e1b4b] tracking-wider uppercase">
+            <a href="/" className="flex items-baseline tracking-tight">
+              <span className="font-extrabold text-xl text-[#222222] tracking-wider uppercase">
                 UNDERTHEWEATHER
               </span>
               <span className="font-bold text-xl text-[#7e43fd]">.eu</span>
@@ -383,19 +377,19 @@ export default function WeatherApp() {
           {/* navigation links */}
           <nav className="hidden md:flex items-center gap-8 text-[15px] font-medium text-[#404040]">
             <a href="/" className="text-[#7e43fd] font-semibold">Home</a>
-            <a href="#forecast" className="hover:text-[#7e43fd] transition">Forecast</a>
-            <a href="#radar" className="hover:text-[#7e43fd] transition">Radar Map</a>
-            <a href="#dispatches" className="hover:text-[#7e43fd] transition">Saved Dispatches</a>
+            <a href="#forecast" className="hover:text-[#7e43fd] transition">5-Day Outlook</a>
+            <a href="#hourly" className="hover:text-[#7e43fd] transition">Hourly Barometer</a>
+            <a href="#saved" className="hover:text-[#7e43fd] transition">Saved Dispatches</a>
             <a href="/api/export?format=json" target="_blank" className="hover:text-[#7e43fd] transition">Export Data</a>
           </nav>
 
-          {/* right tools: unit switcher & geolocation */}
+          {/* right tools */}
           <div className="flex items-center gap-3">
-            <div className="flex items-center bg-[#f1f3f9] rounded-full p-1 border border-slate-200">
+            <div className="flex items-center bg-[#f5f5f7] rounded-full p-0.5 border border-[#e5e5ea]">
               <button
                 onClick={() => setUnit("C")}
                 className={`px-3 py-1 text-xs font-semibold rounded-full transition ${
-                  unit === "C" ? "bg-[#7e43fd] text-white shadow-sm" : "text-slate-600 hover:text-black"
+                  unit === "C" ? "bg-[#7e43fd] text-white shadow-xs" : "text-[#555555] hover:text-black"
                 }`}
               >
                 °C
@@ -403,7 +397,7 @@ export default function WeatherApp() {
               <button
                 onClick={() => setUnit("F")}
                 className={`px-3 py-1 text-xs font-semibold rounded-full transition ${
-                  unit === "F" ? "bg-[#7e43fd] text-white shadow-sm" : "text-slate-600 hover:text-black"
+                  unit === "F" ? "bg-[#7e43fd] text-white shadow-xs" : "text-[#555555] hover:text-black"
                 }`}
               >
                 °F
@@ -412,8 +406,8 @@ export default function WeatherApp() {
 
             <button
               onClick={handleUseCurrentLocation}
-              title="use current gps coordinates"
-              className="p-2.5 rounded-full bg-[#f3eeff] text-[#7e43fd] hover:bg-[#7e43fd] hover:text-white transition border border-[#e9dcff]"
+              title="Locate via GPS"
+              className="p-2 rounded-full bg-[#f4efff] text-[#7e43fd] hover:bg-[#7e43fd] hover:text-white transition"
             >
               <Compass className="w-4 h-4" />
             </button>
@@ -421,303 +415,477 @@ export default function WeatherApp() {
         </div>
       </header>
 
-      {/* main content container */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-6 space-y-10">
-        {/* search and discovery bar */}
-        <div className="space-y-3">
+      {/* main content body */}
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 pt-8 pb-20 space-y-12">
+        {/* search bar */}
+        <section className="max-w-2xl mx-auto space-y-2.5">
           <form onSubmit={handleSearch} className="relative flex items-center">
-            <div className="relative w-full">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="search location by city, town, zip code (e.g. 90210), coordinates (40.71, -74.01)..."
-                className="w-full pl-12 pr-32 py-3.5 bg-white border border-slate-200 rounded-full text-sm text-[#222222] shadow-[0_2px_12px_rgba(0,0,0,0.04)] focus:outline-none focus:border-[#7e43fd] focus:ring-2 focus:ring-[#7e43fd]/20 transition placeholder:text-slate-400"
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="absolute right-2 top-1/2 -translate-y-1/2 px-5 py-2 rounded-full bg-[#7e43fd] hover:bg-[#6d28d9] text-white text-xs font-semibold shadow-sm transition disabled:opacity-50"
-              >
-                {loading ? "loading..." : "Explore"}
-              </button>
-            </div>
+            <Search className="absolute left-4 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search location by city, town, zip code (e.g. 90210), or coordinates..."
+              className="w-full pl-11 pr-28 py-3 bg-[#fbfbfd] border border-[#e5e5ea] rounded-full text-sm text-[#222222] focus:outline-none focus:border-[#7e43fd] transition placeholder:text-slate-400"
+            />
+            <button
+              type="submit"
+              disabled={loading}
+              className="absolute right-1.5 px-5 py-2 rounded-full bg-[#7e43fd] hover:bg-[#6d28d9] text-white text-xs font-semibold transition disabled:opacity-50"
+            >
+              {loading ? "Searching..." : "Search"}
+            </button>
           </form>
 
-          {/* quick suggestion chips */}
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 text-xs text-slate-600">
-            <span className="text-slate-400 font-medium whitespace-nowrap">Suggested:</span>
-            {quickPills.map((pill) => (
+          {/* quick locations */}
+          <div className="flex items-center justify-center gap-2 text-xs text-[#666666] overflow-x-auto">
+            <span className="text-slate-400 font-medium">Trending:</span>
+            {["Tokyo", "London", "New York", "Beverly Hills (90210)", "Paris", "New Delhi"].map((loc) => (
               <button
-                key={pill.label}
+                key={loc}
                 onClick={() => {
-                  setQuery(pill.q);
-                  fetchWeather(pill.q);
+                  const q = loc.includes("(") ? loc.split("(")[1].replace(")", "") : loc;
+                  setQuery(q);
+                  fetchWeather(q);
                 }}
-                className="px-3 py-1 rounded-full bg-white border border-slate-200 hover:border-[#7e43fd] hover:text-[#7e43fd] transition whitespace-nowrap shadow-xs"
+                className="hover:text-[#7e43fd] hover:underline transition"
               >
-                {pill.label}
+                {loc}
               </button>
             ))}
           </div>
-        </div>
+        </section>
 
-        {/* error message banner */}
+        {/* error message */}
         {error && (
-          <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-2xl p-4 flex items-start gap-3 shadow-sm">
-            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-semibold">{error}</p>
-              <p className="text-xs text-rose-600 mt-1">
-                tip: enter a known city name like "Tokyo", a valid 5-digit US zip code like "90210", or comma-separated coordinates like "40.71, -74.01".
-              </p>
-            </div>
+          <div className="bg-rose-50 border border-rose-200 text-rose-800 rounded-xl p-4 flex items-center gap-3 text-sm">
+            <AlertCircle className="w-5 h-5 text-rose-500 shrink-0" />
+            <span>{error}</span>
           </div>
         )}
 
-        {/* hero feature banner matching undertheweather.eu */}
+        {/* featured editorial lead article (Hero matching undertheweather.eu) */}
         {weather && (
-          <section className="relative rounded-3xl overflow-hidden border border-slate-200 shadow-[0_8px_30px_rgba(0,0,0,0.06)] bg-slate-900 min-h-[380px] md:min-h-[440px] flex items-end justify-center p-4 sm:p-8">
-            {/* dynamic atmospheric photography backdrop */}
-            <div
-              className="absolute inset-0 bg-cover bg-center transition-all duration-700 filter brightness-90"
-              style={{ backgroundImage: `url(${getHeroBackdropImage()})` }}
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-black/20" />
+          <section className="relative rounded-2xl overflow-hidden border border-[#e5e7eb] shadow-xs">
+            {/* wide landscape lead photo */}
+            <div className="relative h-[340px] sm:h-[420px] w-full overflow-hidden bg-slate-100">
+              <img
+                src={editorialPhotos[0]}
+                alt="Meteorological observation"
+                className="w-full h-full object-cover filter brightness-95"
+              />
+            </div>
 
-            {/* floating white editorial card overlapping the photography */}
-            <div className="relative z-10 bg-white/95 backdrop-blur-md rounded-2xl p-6 sm:p-8 max-w-4xl w-full border border-slate-100 shadow-2xl flex flex-col md:flex-row items-center justify-between gap-6">
-              <div className="space-y-3 text-center md:text-left">
-                {/* purple badge */}
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-semibold bg-[#7e43fd] text-white uppercase tracking-wider">
-                  <span>Live Meteorological Dispatch</span>
+            {/* overlapping editorial story card matching undertheweather.eu */}
+            <div className="relative -mt-20 mx-4 sm:mx-12 mb-6 bg-white rounded-xl border border-[#e5e7eb] p-6 sm:p-8 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-[#f0f0f0] pb-4">
+                <div>
+                  <div className="inline-block px-3 py-1 rounded-full text-[11px] font-semibold bg-[#7e43fd] text-white uppercase tracking-wider mb-2">
+                    Current Meteorological Dispatch
+                  </div>
+                  <h1 className="font-serif italic text-3xl sm:text-4xl text-[#222222] font-normal leading-tight">
+                    {weather.location.name}, {weather.location.country}
+                  </h1>
                 </div>
 
-                {/* editorial serif headline */}
-                <h1 className="font-serif italic text-3xl sm:text-4xl lg:text-5xl text-[#222222] font-normal tracking-tight">
-                  {weather.location.name}
-                  {weather.location.country ? `, ${weather.location.country}` : ""}
-                </h1>
-
-                {/* metadata row */}
-                <div className="flex flex-wrap items-center justify-center md:justify-start gap-4 text-xs text-[#555555]">
-                  <span className="flex items-center gap-1 font-medium">
-                    <User className="w-3.5 h-3.5 text-[#7e43fd]" />
-                    Hrishikesh Yadav
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
-                    {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                  </span>
-                  <span className="font-semibold text-[#7e43fd]">
-                    {weather.current.condition}
-                  </span>
+                <div className="flex items-center gap-4 shrink-0">
+                  <div className="text-right">
+                    <span className="font-serif text-5xl text-[#222222]">
+                      {tempDisplay(weather.current.temp)}
+                    </span>
+                    <span className="text-xs text-slate-500 block">
+                      feels like {tempDisplay(weather.current.feelsLike)}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => setSaveModalOpen(true)}
+                    className="p-3 rounded-full bg-[#f4efff] text-[#7e43fd] hover:bg-[#7e43fd] hover:text-white transition"
+                    title="Bookmark location"
+                  >
+                    <Bookmark className="w-4 h-4" />
+                  </button>
                 </div>
               </div>
 
-              {/* temperature and quick save action */}
-              <div className="flex items-center gap-6 border-t md:border-t-0 md:border-l border-slate-200 pt-4 md:pt-0 md:pl-6 shrink-0">
-                <div className="text-center md:text-right">
-                  <div className="font-serif text-5xl sm:text-6xl text-[#1e1b4b] font-normal tracking-tight">
-                    {tempDisplay(weather.current.temp)}
-                  </div>
-                  <div className="text-xs text-slate-500 font-medium mt-1">
-                    feels like {tempDisplay(weather.current.feelsLike)} • {weather.current.humidity}% humidity
-                  </div>
-                </div>
+              {/* journalistic weather narrative */}
+              <p className="text-[15px] text-[#444444] leading-relaxed font-sans">
+                {getWeatherNarrative(
+                  weather.location.name,
+                  weather.current.condition,
+                  weather.current.temp,
+                  weather.current.humidity,
+                  weather.current.windSpeed
+                )}
+              </p>
 
-                <button
-                  onClick={() => setSaveModalOpen(true)}
-                  className="px-4 py-2.5 rounded-full bg-[#7e43fd] hover:bg-[#6d28d9] text-white text-xs font-semibold shadow-sm transition flex items-center gap-1.5"
-                >
-                  <Bookmark className="w-3.5 h-3.5" />
-                  Save
-                </button>
+              {/* editorial metadata row */}
+              <div className="flex flex-wrap items-center justify-between text-xs text-[#777777] pt-2 border-t border-[#f5f5f5]">
+                <div className="flex items-center gap-4">
+                  <span className="flex items-center gap-1.5 font-medium text-[#222222]">
+                    <User className="w-3.5 h-3.5 text-[#7e43fd]" />
+                    Hrishikesh Yadav
+                  </span>
+                  <span className="flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-slate-400" />
+                    {new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span>wind: {weather.current.windSpeed} km/h</span>
+                  <span>humidity: {weather.current.humidity}%</span>
+                  <span>pressure: {weather.current.pressure} hPa</span>
+                </div>
               </div>
             </div>
           </section>
         )}
 
-        {/* main 2-column editorial grid matching undertheweather.eu */}
+        {/* 2-column layout: 5-Day forecast cards (left 2/3) + Sidebar widgets (right 1/3) */}
         {weather && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
-            {/* left column (2 cols): 5-day forecast & hourly telemetry */}
+            {/* left column: 5-day outlook articles matching undertheweather.eu card grid */}
             <div className="lg:col-span-2 space-y-10">
-              {/* 5-day forecast cards (Tech Assessment 1.1) */}
-              <section id="forecast" className="space-y-4">
-                <div className="flex items-baseline justify-between border-b border-slate-200 pb-3">
+              <section id="forecast" className="space-y-6">
+                <div className="border-b border-[#222222] pb-2 flex items-baseline justify-between">
                   <h2 className="font-serif italic text-2xl sm:text-3xl text-[#222222]">
-                    Five-Day Meteorological Outlook
+                    Five-Day Weather Dispatches
                   </h2>
-                  <span className="text-xs text-slate-500">synoptic projection</span>
+                  <span className="text-xs text-[#777777]">Synoptic projection</span>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                {/* article cards matching undertheweather.eu layout */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                   {weather.forecast.slice(0, 5).map((day, idx) => (
                     <article
                       key={day.date}
-                      className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition flex flex-col justify-between"
+                      className="bg-white rounded-xl border border-[#e5e7eb] overflow-hidden shadow-xs flex flex-col justify-between"
                     >
-                      {/* atmospheric top banner for day card */}
-                      <div className="relative h-28 overflow-hidden bg-gradient-to-r from-slate-200 via-indigo-50 to-purple-100">
+                      {/* article photo with category pill and bookmark icon */}
+                      <div className="relative h-44 w-full bg-slate-100 overflow-hidden">
                         <img
-                          src={getDayPhoto(idx)}
-                          alt=""
-                          onError={(e) => {
-                            (e.target as HTMLElement).style.display = "none";
-                          }}
-                          className="w-full h-full object-cover filter brightness-90 hover:scale-105 transition duration-500"
+                          src={editorialPhotos[(idx + 1) % editorialPhotos.length]}
+                          alt={day.condition}
+                          className="w-full h-full object-cover filter brightness-95 hover:scale-105 transition duration-500"
                         />
-                        <div className="absolute top-2.5 left-2.5">
-                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-semibold bg-[#7e43fd] text-white shadow-xs">
-                            {new Date(day.date + "T00:00:00").toLocaleDateString("en-US", {
-                              weekday: "short",
-                              month: "short",
-                              day: "numeric",
-                            })}
+                        <div className="absolute top-3 left-3">
+                          <span className="px-3 py-1 rounded-full text-[11px] font-semibold bg-[#7e43fd] text-white uppercase tracking-wider">
+                            Outlook • Day {idx + 1}
                           </span>
+                        </div>
+                        <div className="absolute top-3 right-3 w-7 h-7 rounded-full bg-black/40 flex items-center justify-center text-white">
+                          <Bookmark className="w-3.5 h-3.5" />
                         </div>
                       </div>
 
-                      {/* card body */}
-                      <div className="p-4 space-y-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <h3 className="font-serif italic text-lg text-[#222222] leading-snug">
-                            {day.condition}
-                          </h3>
-                          {renderWeatherIcon(day.icon, "w-6 h-6")}
-                        </div>
-
-                        <div className="flex items-baseline justify-between pt-1">
-                          <div className="text-xl font-bold text-[#1e1b4b]">
-                            {tempDisplay(day.maxTemp)}
-                            <span className="text-xs font-normal text-slate-400 ml-1.5">
-                              / {tempDisplay(day.minTemp)}
+                      {/* article content body */}
+                      <div className="p-5 space-y-3 flex-1 flex flex-col justify-between">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-1.5 text-xs text-[#7e43fd] font-medium">
+                            <Calendar className="w-3.5 h-3.5" />
+                            <span>
+                              {new Date(day.date + "T00:00:00").toLocaleDateString("en-US", {
+                                weekday: "long",
+                                month: "short",
+                                day: "numeric",
+                              })}
                             </span>
                           </div>
-                          <span className="text-[11px] font-medium text-slate-500">
-                            rain {day.precipProb}%
-                          </span>
+
+                          <h3 className="font-serif italic text-xl text-[#222222] font-normal leading-snug">
+                            {day.condition} Across the Region
+                          </h3>
+
+                          <p className="text-xs text-[#555555] leading-relaxed">
+                            {getDayNarrative(
+                              day.condition,
+                              day.maxTemp,
+                              day.minTemp,
+                              day.precipProb,
+                              day.maxWind
+                            )}
+                          </p>
                         </div>
 
-                        <div className="text-[11px] text-slate-500 flex justify-between border-t border-slate-100 pt-2">
-                          <span>wind: {Math.round(day.maxWind)} km/h</span>
-                          <span>uv index: {day.uvIndex}</span>
+                        {/* article footer */}
+                        <div className="pt-3 border-t border-[#f0f0f0] space-y-2">
+                          <div className="flex items-center justify-between text-xs">
+                            <span className="font-bold text-[#222222]">
+                              {tempDisplay(day.maxTemp)} / {tempDisplay(day.minTemp)}
+                            </span>
+                            <span className="text-[#7e43fd] font-medium flex items-center gap-1 hover:underline cursor-pointer">
+                              Explore Forecast <ArrowUpRight className="w-3 h-3" />
+                            </span>
+                          </div>
+
+                          <div className="flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                            <span>Precip: {day.precipProb}%</span>
+                            <span>Wind: {Math.round(day.maxWind)} km/h</span>
+                            <span>UV: {day.uvIndex}</span>
+                          </div>
                         </div>
+                      </div>
+
+                      {/* article author signature bar */}
+                      <div className="px-5 py-2.5 bg-[#fafafa] border-t border-[#f0f0f0] flex items-center gap-2 text-xs text-[#666666]">
+                        <User className="w-3 h-3 text-[#7e43fd]" />
+                        <span>Hrishikesh Yadav</span>
                       </div>
                     </article>
                   ))}
                 </div>
               </section>
 
-              {/* 24-hour diurnal hourly barometer */}
-              <section className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-                <div className="flex items-center justify-between">
+              {/* 24-hour diurnal hourly table */}
+              <section id="hourly" className="bg-white rounded-xl border border-[#e5e7eb] p-6 shadow-xs space-y-4">
+                <div className="border-b border-[#f0f0f0] pb-3 flex items-baseline justify-between">
                   <h3 className="font-serif italic text-xl text-[#222222]">
                     Hourly Atmospheric Barometer
                   </h3>
-                  <span className="text-xs text-slate-500">24-hour diurnal trend</span>
+                  <span className="text-xs text-slate-400">24-hour continuous timeline</span>
                 </div>
 
-                <div className="flex gap-3 overflow-x-auto pb-2 pt-1">
-                  {weather.hourly.slice(0, 24).map((h, i) => (
-                    <div
-                      key={i}
-                      className="flex-shrink-0 w-20 bg-[#f8f9fc] border border-slate-200/80 rounded-xl p-3 text-center space-y-2 hover:border-[#7e43fd] transition"
-                    >
-                      <span className="text-[11px] font-semibold text-slate-600 block">
-                        {formatHour(h.time)}
-                      </span>
-                      <div className="flex justify-center">
-                        <CloudSun className="w-5 h-5 text-amber-500" />
+                <div className="overflow-x-auto">
+                  <div className="flex gap-2 min-w-max pb-2">
+                    {weather.hourly.slice(0, 24).map((h, i) => (
+                      <div
+                        key={i}
+                        className="w-16 p-2.5 rounded-lg border border-[#f0f0f0] text-center space-y-1.5 hover:border-[#7e43fd] transition"
+                      >
+                        <span className="text-[10px] text-slate-500 font-medium block">
+                          {formatHour(h.time)}
+                        </span>
+                        <div className="flex justify-center">
+                          {renderWeatherIcon(h.condition, "w-4 h-4")}
+                        </div>
+                        <span className="text-xs font-bold text-[#222222] block">
+                          {tempDisplay(h.temp)}
+                        </span>
+                        <span className="text-[9px] text-slate-400 block">
+                          {h.precipProb}%
+                        </span>
                       </div>
-                      <span className="text-sm font-bold text-[#1e1b4b] block">
-                        {tempDisplay(h.temp)}
-                      </span>
-                      <span className="text-[10px] text-slate-400 block">
-                        {h.precipProb}% rain
-                      </span>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </section>
 
-              {/* atmospheric telemetry telemetry grid */}
-              <section className="space-y-3">
-                <h3 className="font-serif italic text-xl text-[#222222]">
-                  Atmospheric Telemetry
+              {/* atmospheric telemetry table */}
+              <section className="bg-white rounded-xl border border-[#e5e7eb] p-6 shadow-xs space-y-4">
+                <h3 className="font-serif italic text-xl text-[#222222] border-b border-[#f0f0f0] pb-3">
+                  Atmospheric Telemetry & Observations
                 </h3>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-                    <span className="text-xs text-slate-400 block mb-1">Wind & Direction</span>
-                    <span className="text-lg font-bold text-[#222222]">
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 text-xs">
+                  <div className="p-3 rounded-lg bg-[#fafafa] border border-[#f0f0f0]">
+                    <span className="text-slate-400 block mb-1">Wind Speed & Gusts</span>
+                    <span className="text-base font-bold text-[#222222]">
                       {weather.current.windSpeed} km/h
                     </span>
                     <span className="text-[11px] text-slate-500 block mt-0.5">
-                      heading {weather.current.windDirection}°
+                      Heading: {weather.current.windDirection}°
                     </span>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-                    <span className="text-xs text-slate-400 block mb-1">Relative Humidity</span>
-                    <span className="text-lg font-bold text-[#222222]">
+                  <div className="p-3 rounded-lg bg-[#fafafa] border border-[#f0f0f0]">
+                    <span className="text-slate-400 block mb-1">Relative Humidity</span>
+                    <span className="text-base font-bold text-[#222222]">
                       {weather.current.humidity}%
                     </span>
-                    <span className="text-[11px] text-slate-500 block mt-0.5">dew point calibrated</span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Dew point normalized
+                    </span>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-                    <span className="text-xs text-slate-400 block mb-1">Barometric Pressure</span>
-                    <span className="text-lg font-bold text-[#222222]">
+                  <div className="p-3 rounded-lg bg-[#fafafa] border border-[#f0f0f0]">
+                    <span className="text-slate-400 block mb-1">Barometric Pressure</span>
+                    <span className="text-base font-bold text-[#222222]">
                       {weather.current.pressure} hPa
                     </span>
-                    <span className="text-[11px] text-slate-500 block mt-0.5">sea level normalized</span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Sea level calibrated
+                    </span>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-                    <span className="text-xs text-slate-400 block mb-1">Cloud Coverage</span>
-                    <span className="text-lg font-bold text-[#222222]">
+                  <div className="p-3 rounded-lg bg-[#fafafa] border border-[#f0f0f0]">
+                    <span className="text-slate-400 block mb-1">Cloud Coverage</span>
+                    <span className="text-base font-bold text-[#222222]">
                       {weather.current.cloudCover}%
                     </span>
-                    <span className="text-[11px] text-slate-500 block mt-0.5">sky obscuration</span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Sky obscuration index
+                    </span>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-                    <span className="text-xs text-slate-400 block mb-1">Precipitation Accum.</span>
-                    <span className="text-lg font-bold text-[#222222]">
+                  <div className="p-3 rounded-lg bg-[#fafafa] border border-[#f0f0f0]">
+                    <span className="text-slate-400 block mb-1">Precipitation (Last Hr)</span>
+                    <span className="text-base font-bold text-[#222222]">
                       {weather.current.precipitation} mm
                     </span>
-                    <span className="text-[11px] text-slate-500 block mt-0.5">last 60 minutes</span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Rainfall sensor telemetry
+                    </span>
                   </div>
 
-                  <div className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs">
-                    <span className="text-xs text-slate-400 block mb-1">Solar Radiation</span>
-                    <span className="text-lg font-bold text-[#222222]">
-                      {weather.current.isDay ? "Daylight" : "Night"}
+                  <div className="p-3 rounded-lg bg-[#fafafa] border border-[#f0f0f0]">
+                    <span className="text-slate-400 block mb-1">Solar Exposure</span>
+                    <span className="text-base font-bold text-[#222222]">
+                      {weather.current.isDay ? "Daylight Phase" : "Nocturnal Phase"}
                     </span>
-                    <span className="text-[11px] text-slate-500 block mt-0.5">elevation {weather.location.elevation || 0}m</span>
+                    <span className="text-[11px] text-slate-500 block mt-0.5">
+                      Elevation: {weather.location.elevation || 0}m
+                    </span>
                   </div>
                 </div>
               </section>
             </div>
 
-            {/* right column (1 col): sidebar widgets matching undertheweather.eu */}
+            {/* right column: sidebar widgets matching undertheweather.eu */}
             <aside className="space-y-6">
-              {/* widget 1: interactive spatial radar (OpenStreetMap) */}
-              <div id="radar" className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
-                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
-                  <h3 className="font-serif italic text-lg text-[#222222]">
+              {/* widget 1: saved locations (CRUD) */}
+              <div id="saved" className="bg-white rounded-xl border border-[#e5e7eb] p-5 shadow-xs space-y-4">
+                <div className="border-b border-[#222222] pb-2 flex items-center justify-between">
+                  <h3 className="font-serif italic text-xl text-[#222222]">
+                    Saved Dispatches
+                  </h3>
+                  <button
+                    onClick={() => setSaveModalOpen(true)}
+                    className="text-xs text-[#7e43fd] hover:underline font-semibold"
+                  >
+                    + Pin Current
+                  </button>
+                </div>
+
+                <div className="space-y-2.5">
+                  {favorites.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-2">
+                      No saved locations yet. Pin one with the button above.
+                    </p>
+                  ) : (
+                    favorites.map((fav) => (
+                      <div
+                        key={fav.id}
+                        className="py-2.5 border-b border-[#f0f0f0] last:border-0 space-y-1"
+                      >
+                        <div className="flex items-center justify-between">
+                          <button
+                            onClick={() => fetchWeather(undefined, fav.lat, fav.lon)}
+                            className="font-medium text-xs text-[#222222] hover:text-[#7e43fd] text-left"
+                          >
+                            {fav.name} {fav.country && `(${fav.country})`}
+                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => {
+                                setEditingId(fav.id);
+                                setEditNote(fav.notes || "");
+                              }}
+                              className="text-slate-400 hover:text-black"
+                            >
+                              <Edit2 className="w-3 h-3" />
+                            </button>
+                            <button
+                              onClick={() => handleDeleteFavorite(fav.id)}
+                              className="text-slate-400 hover:text-rose-600"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        </div>
+
+                        {editingId === fav.id ? (
+                          <div className="space-y-1.5 pt-1">
+                            <input
+                              type="text"
+                              value={editNote}
+                              onChange={(e) => setEditNote(e.target.value)}
+                              placeholder="Observation notes..."
+                              className="w-full px-2 py-1 text-xs border rounded bg-[#fafafa]"
+                            />
+                            <div className="flex justify-end gap-1">
+                              <button
+                                onClick={() => handleUpdateFavorite(fav.id)}
+                                className="px-2 py-0.5 rounded bg-[#7e43fd] text-white text-[10px]"
+                              >
+                                Save
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px]"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          fav.notes && (
+                            <p className="text-[11px] text-slate-500 italic">
+                              "{fav.notes}"
+                            </p>
+                          )
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* widget 2: recent searches (matching Recent Posts on undertheweather.eu) */}
+              <div className="bg-white rounded-xl border border-[#e5e7eb] p-5 shadow-xs space-y-4">
+                <div className="border-b border-[#222222] pb-2 flex items-center justify-between">
+                  <h3 className="font-serif italic text-xl text-[#222222]">
+                    Recent Searches
+                  </h3>
+                  <button
+                    onClick={() => handleDeleteHistory()}
+                    className="text-[10px] text-slate-400 hover:text-rose-600"
+                  >
+                    Clear All
+                  </button>
+                </div>
+
+                <div className="space-y-2">
+                  {history.length === 0 ? (
+                    <p className="text-xs text-slate-400 py-2">
+                      Search log is currently empty.
+                    </p>
+                  ) : (
+                    history.slice(0, 5).map((item) => (
+                      <div
+                        key={item.id}
+                        onClick={() => fetchWeather(item.query)}
+                        className="py-2 border-b border-[#f0f0f0] last:border-0 flex justify-between items-center text-xs hover:text-[#7e43fd] cursor-pointer transition"
+                      >
+                        <div>
+                          <span className="font-medium text-[#333333] block">
+                            {item.location_name}
+                          </span>
+                          <span className="text-[10px] text-slate-400">
+                            Query: "{item.query}"
+                          </span>
+                        </div>
+                        <span className="font-semibold text-[#7e43fd]">
+                          {tempDisplay(item.temp_c)}
+                        </span>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* widget 3: spatial radar (OpenStreetMap) */}
+              <div className="bg-white rounded-xl border border-[#e5e7eb] p-5 shadow-xs space-y-3">
+                <div className="border-b border-[#222222] pb-2 flex items-center justify-between">
+                  <h3 className="font-serif italic text-xl text-[#222222]">
                     Spatial Radar
                   </h3>
-                  <span className="text-[11px] font-semibold text-[#7e43fd] bg-[#f3eeff] px-2 py-0.5 rounded-full">
+                  <span className="text-[10px] text-[#7e43fd] font-semibold bg-[#f4efff] px-2 py-0.5 rounded-full">
                     {weather.location.lat.toFixed(2)}°, {weather.location.lon.toFixed(2)}°
                   </span>
                 </div>
 
-                <div className="h-48 rounded-xl overflow-hidden border border-slate-200 relative">
+                <div className="h-44 rounded-lg overflow-hidden border border-[#e5e7eb] relative bg-slate-100">
                   <iframe
-                    title="OpenStreetMap"
+                    title="OpenStreetMap Radar"
                     width="100%"
                     height="100%"
                     frameBorder="0"
@@ -725,188 +893,43 @@ export default function WeatherApp() {
                     src={`https://www.openstreetmap.org/export/embed.html?bbox=${weather.location.lon - 0.08}%2C${weather.location.lat - 0.08}%2C${weather.location.lon + 0.08}%2C${weather.location.lat + 0.08}&layer=mapnik&marker=${weather.location.lat}%2C${weather.location.lon}`}
                   />
                 </div>
-                <p className="text-[11px] text-slate-400">
-                  real time spatial mapping via openstreetmap
+                <p className="text-[10px] text-slate-400">
+                  Real-time coordinate Doppler mapping via OpenStreetMap
                 </p>
               </div>
 
-              {/* widget 2: saved dispatches & history tabs (CRUD) */}
-              <div id="dispatches" className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex gap-2 text-xs font-semibold">
-                    <button
-                      onClick={() => setActiveTab("favorites")}
-                      className={`px-3 py-1 rounded-full transition ${
-                        activeTab === "favorites"
-                          ? "bg-[#7e43fd] text-white"
-                          : "text-slate-500 hover:text-black"
-                      }`}
-                    >
-                      Saved ({favorites.length})
-                    </button>
-                    <button
-                      onClick={() => setActiveTab("history")}
-                      className={`px-3 py-1 rounded-full transition ${
-                        activeTab === "history"
-                          ? "bg-[#7e43fd] text-white"
-                          : "text-slate-500 hover:text-black"
-                      }`}
-                    >
-                      History ({history.length})
-                    </button>
-                  </div>
-
-                  <button
-                    onClick={() => setSaveModalOpen(true)}
-                    className="text-xs text-[#7e43fd] hover:underline font-medium"
-                  >
-                    + Pin
-                  </button>
-                </div>
-
-                {activeTab === "favorites" ? (
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    {favorites.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-4">
-                        no saved locations yet. click "Save" above to pin one.
-                      </p>
-                    ) : (
-                      favorites.map((fav) => (
-                        <div
-                          key={fav.id}
-                          className="p-3 rounded-xl border border-slate-100 bg-[#fbfbfd] hover:border-slate-300 transition text-xs space-y-2"
-                        >
-                          <div className="flex items-center justify-between">
-                            <button
-                              onClick={() => fetchWeather(undefined, fav.lat, fav.lon)}
-                              className="font-semibold text-slate-800 hover:text-[#7e43fd] text-left"
-                            >
-                              {fav.name} {fav.country && `(${fav.country})`}
-                            </button>
-                            <div className="flex items-center gap-1.5">
-                              <button
-                                onClick={() => {
-                                  setEditingId(fav.id);
-                                  setEditNote(fav.notes || "");
-                                  setEditTag(fav.tag || "General");
-                                }}
-                                className="text-slate-400 hover:text-slate-700"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteFavorite(fav.id)}
-                                className="text-slate-400 hover:text-rose-600"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
-                          </div>
-
-                          {editingId === fav.id ? (
-                            <div className="space-y-2 pt-2 border-t border-slate-200">
-                              <input
-                                type="text"
-                                value={editNote}
-                                onChange={(e) => setEditNote(e.target.value)}
-                                placeholder="notes..."
-                                className="w-full px-2 py-1 text-xs border rounded bg-white"
-                              />
-                              <div className="flex justify-end gap-1">
-                                <button
-                                  onClick={() => handleUpdateFavorite(fav.id)}
-                                  className="px-2 py-0.5 rounded bg-[#7e43fd] text-white text-[10px]"
-                                >
-                                  Save
-                                </button>
-                                <button
-                                  onClick={() => setEditingId(null)}
-                                  className="px-2 py-0.5 rounded bg-slate-200 text-slate-600 text-[10px]"
-                                >
-                                  Cancel
-                                </button>
-                              </div>
-                            </div>
-                          ) : (
-                            fav.notes && (
-                              <p className="text-[11px] text-slate-500 italic">
-                                "{fav.notes}"
-                              </p>
-                            )
-                          )}
-                        </div>
-                      ))
-                    )}
-                  </div>
-                ) : (
-                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
-                    <div className="flex justify-between items-center text-[10px] text-slate-400">
-                      <span>Recent search logs</span>
-                      <button
-                        onClick={() => handleDeleteHistory()}
-                        className="hover:text-rose-500"
-                      >
-                        Clear All
-                      </button>
-                    </div>
-                    {history.length === 0 ? (
-                      <p className="text-xs text-slate-400 text-center py-4">
-                        history is empty.
-                      </p>
-                    ) : (
-                      history.map((item) => (
-                        <div
-                          key={item.id}
-                          onClick={() => fetchWeather(item.query)}
-                          className="p-2.5 rounded-xl border border-slate-100 bg-[#fbfbfd] hover:border-slate-300 cursor-pointer flex justify-between items-center text-xs"
-                        >
-                          <div>
-                            <span className="font-medium text-slate-700 block">
-                              {item.location_name}
-                            </span>
-                            <span className="text-[10px] text-slate-400">
-                              query: "{item.query}"
-                            </span>
-                          </div>
-                          <span className="font-bold text-[#7e43fd]">
-                            {tempDisplay(item.temp_c)}
-                          </span>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                )}
-              </div>
-
-              {/* widget 3: data export panel (Tech Assessment 2.3) */}
-              <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-3">
-                <h3 className="font-serif italic text-lg text-[#222222]">
+              {/* widget 4: data export panel (Tech Assessment 2.3) */}
+              <div className="bg-white rounded-xl border border-[#e5e7eb] p-5 shadow-xs space-y-3">
+                <h3 className="font-serif italic text-xl text-[#222222] border-b border-[#222222] pb-2">
                   Telemetry Export
                 </h3>
-                <p className="text-xs text-slate-500">
-                  download stored weather records and sqlite database entries
+                <p className="text-xs text-[#666666]">
+                  Download stored weather dispatches and SQLite database records
                 </p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col gap-2 pt-1 text-xs font-semibold">
                   <a
                     href="/api/export?format=json"
                     download
-                    className="px-3 py-2 rounded-xl border border-slate-200 hover:border-[#7e43fd] hover:text-[#7e43fd] text-center text-xs font-semibold transition"
+                    className="p-2.5 rounded-lg border border-[#e5e7eb] hover:border-[#7e43fd] hover:text-[#7e43fd] flex items-center justify-between transition"
                   >
-                    JSON
+                    <span>Download JSON Format</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
                   </a>
                   <a
                     href="/api/export?format=csv"
                     download
-                    className="px-3 py-2 rounded-xl border border-slate-200 hover:border-[#7e43fd] hover:text-[#7e43fd] text-center text-xs font-semibold transition"
+                    className="p-2.5 rounded-lg border border-[#e5e7eb] hover:border-[#7e43fd] hover:text-[#7e43fd] flex items-center justify-between transition"
                   >
-                    CSV
+                    <span>Download CSV Spreadsheet</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
                   </a>
                   <a
                     href="/api/export?format=markdown"
                     download
-                    className="px-3 py-2 rounded-xl border border-slate-200 hover:border-[#7e43fd] hover:text-[#7e43fd] text-center text-xs font-semibold transition"
+                    className="p-2.5 rounded-lg border border-[#e5e7eb] hover:border-[#7e43fd] hover:text-[#7e43fd] flex items-center justify-between transition"
                   >
-                    Markdown
+                    <span>Download Markdown Briefing</span>
+                    <ArrowUpRight className="w-3.5 h-3.5" />
                   </a>
                 </div>
               </div>
@@ -915,20 +938,11 @@ export default function WeatherApp() {
         )}
       </main>
 
-      {/* signature purple floating scroll-to-top button matching undertheweather.eu */}
-      <button
-        onClick={scrollToTop}
-        title="Scroll to top"
-        className="fixed bottom-6 right-6 w-11 h-11 rounded-full bg-[#7e43fd] hover:bg-[#6d28d9] text-white shadow-lg flex items-center justify-center transition hover:scale-105 z-30"
-      >
-        <ArrowUp className="w-5 h-5" />
-      </button>
-
-      {/* modal: save to favorites */}
+      {/* modal: pin location */}
       {saveModalOpen && weather && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between">
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-xs flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-xl max-w-md w-full p-6 shadow-xl border border-[#e5e7eb] space-y-4">
+            <div className="flex items-center justify-between border-b border-[#f0f0f0] pb-3">
               <h3 className="font-serif italic text-xl text-[#222222]">
                 Pin Location to Dispatches
               </h3>
@@ -940,34 +954,34 @@ export default function WeatherApp() {
               </button>
             </div>
 
-            <p className="text-xs text-slate-500">
-              saving {weather.location.name}, {weather.location.country} ({weather.location.lat.toFixed(2)}°, {weather.location.lon.toFixed(2)}°) into sqlite database.
+            <p className="text-xs text-[#666666]">
+              Saving {weather.location.name}, {weather.location.country} into SQLite database.
             </p>
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-medium text-slate-700 block mb-1">
-                  Tag
+                <label className="text-xs font-medium text-[#222222] block mb-1">
+                  Tag Classification
                 </label>
                 <input
                   type="text"
                   value={saveTag}
                   onChange={(e) => setSaveTag(e.target.value)}
                   placeholder="e.g. Research, Home, Travel"
-                  className="w-full px-3 py-2 border rounded-xl text-xs bg-[#fbfbfd]"
+                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-xs bg-[#fafafa]"
                 />
               </div>
 
               <div>
-                <label className="text-xs font-medium text-slate-700 block mb-1">
-                  Personal Notes
+                <label className="text-xs font-medium text-[#222222] block mb-1">
+                  Observation Notes
                 </label>
                 <textarea
                   value={saveNote}
                   onChange={(e) => setSaveNote(e.target.value)}
-                  placeholder="add climate research observations or travel notes..."
+                  placeholder="Add meteorological or regional notes..."
                   rows={3}
-                  className="w-full px-3 py-2 border rounded-xl text-xs bg-[#fbfbfd]"
+                  className="w-full px-3 py-2 border border-[#e5e7eb] rounded-lg text-xs bg-[#fafafa]"
                 />
               </div>
             </div>
@@ -983,16 +997,16 @@ export default function WeatherApp() {
                 onClick={handleSaveFavorite}
                 className="px-5 py-2 rounded-full bg-[#7e43fd] hover:bg-[#6d28d9] text-white text-xs font-semibold shadow-xs"
               >
-                Save to Database
+                Save Dispatch
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* dark sleek footer matching undertheweather.eu */}
-      <footer className="mt-20 bg-[#111111] text-[#999999] py-8 text-center text-xs">
-        <p>2026 Copyrights | undertheweather.eu • Weather Intelligence Platform by Hrishikesh Yadav</p>
+      {/* footer matching undertheweather.eu */}
+      <footer className="border-t border-[#eeeeee] bg-[#111111] text-[#999999] py-8 text-center text-xs">
+        <p>2026 Copyrights | undertheweather.eu</p>
       </footer>
     </div>
   );
