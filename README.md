@@ -2,6 +2,7 @@
 
 > **Technical Assessment Submission for AI Engineer Intern (Full-Stack Track)**  
 > **Candidate:** Hrishikesh Yadav ([GitHub](https://github.com/rishiiicreates) | [LinkedIn](https://www.linkedin.com/in/rishiicreates))  
+> **Live Deployment:** [pm-accelerator-weather-pearl.vercel.app](https://pm-accelerator-weather-pearl.vercel.app)  
 > **Status:** Full-Stack Complete (Assessments #1 & #2)
 
 ---
