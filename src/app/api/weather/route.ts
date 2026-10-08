@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    // Call Open-Meteo weather API
+    // query open-meteo forecast api
     const weatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,pressure_msl,surface_pressure,wind_speed_10m,wind_direction_10m&hourly=temperature_2m,relative_humidity_2m,precipitation_probability,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,sunrise,sunset,uv_index_max,precipitation_sum,precipitation_probability_max,wind_speed_10m_max&timezone=auto`;
 
     const weatherRes = await fetch(weatherUrl, { next: { revalidate: 600 } });
@@ -58,7 +58,7 @@ export async function GET(req: NextRequest) {
     const currentCode = data.current?.weather_code ?? 0;
     const condition = getWeatherCondition(currentCode);
 
-    // Format 5-Day Forecast
+    // 5-day daily forecast payload
     const daily = data.daily || {};
     const forecast = [];
     const dailyLength = Math.min(daily.time?.length || 0, 7);
@@ -83,7 +83,7 @@ export async function GET(req: NextRequest) {
       });
     }
 
-    // Format next 24-hour hourly slice
+    // 24 hour slice
     const hourly = data.hourly || {};
     const hourlyForecast = [];
     const hourlyLength = Math.min(hourly.time?.length || 0, 24);
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
       hourly: hourlyForecast,
     };
 
-    // Save search into SQLite persistence table
+    // log query in search history table
     try {
       recordHistory({
         query: query || `${lat.toFixed(2)},${lon.toFixed(2)}`,

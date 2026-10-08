@@ -111,7 +111,7 @@ export default function WeatherApp() {
   const [weather, setWeather] = useState<WeatherData | null>(null);
   const [unit, setUnit] = useState<"C" | "F">("C");
 
-  // Database CRUD state
+  // favorites and search history state
   const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
   const [history, setHistory] = useState<HistoryItem[]>([]);
   const [activeTab, setActiveTab] = useState<"favorites" | "history">("favorites");
@@ -122,7 +122,7 @@ export default function WeatherApp() {
   const [saveNote, setSaveNote] = useState("");
   const [saveTag, setSaveTag] = useState("Home");
 
-  // Initial load
+  // initial weather and list load
   useEffect(() => {
     fetchWeather("New York");
     loadFavorites();
@@ -207,7 +207,7 @@ export default function WeatherApp() {
     }
   };
 
-  // CRUD: Create Favorite
+  // add current location to favorites
   const handleSaveFavorite = async () => {
     if (!weather) return;
     try {
@@ -233,7 +233,7 @@ export default function WeatherApp() {
     }
   };
 
-  // CRUD: Update Favorite
+  // update favorite note
   const handleUpdateFavorite = async (id: number) => {
     try {
       const res = await fetch(`/api/favorites/${id}`, {
@@ -250,7 +250,7 @@ export default function WeatherApp() {
     }
   };
 
-  // CRUD: Delete Favorite
+  // remove favorite item
   const handleDeleteFavorite = async (id: number) => {
     try {
       const res = await fetch(`/api/favorites/${id}`, { method: "DELETE" });
@@ -262,7 +262,7 @@ export default function WeatherApp() {
     }
   };
 
-  // History Delete
+  // clear single or all history rows
   const handleDeleteHistory = async (id?: number) => {
     try {
       const url = id ? `/api/history?id=${id}` : "/api/history";
@@ -320,7 +320,7 @@ export default function WeatherApp() {
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 pb-16">
-      {/* Top Brand Banner */}
+      {/* header */}
       <header className="border-b border-slate-800/80 bg-slate-900/60 backdrop-blur sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
           <div className="flex items-center gap-3">
@@ -340,7 +340,7 @@ export default function WeatherApp() {
             </div>
           </div>
 
-          {/* Unit Toggle and Status Badges */}
+          {/* unit toggle */}
           <div className="flex items-center gap-3">
             <div className="flex items-center bg-slate-800/80 rounded-lg p-1 border border-slate-700">
               <button
@@ -369,7 +369,7 @@ export default function WeatherApp() {
         </div>
       </header>
 
-      {/* PM Accelerator Mission Callout */}
+      {/* mission banner */}
       <div className="max-w-7xl mx-auto px-4 mt-4">
         <div className="p-3.5 rounded-xl bg-gradient-to-r from-indigo-950/60 via-slate-900/60 to-sky-950/60 border border-indigo-500/20 flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs text-slate-300">
           <div className="flex items-center gap-2">
@@ -383,7 +383,7 @@ export default function WeatherApp() {
       </div>
 
       <main className="max-w-7xl mx-auto px-4 mt-6 space-y-6">
-        {/* Search & Location Bar */}
+        {/* search bar */}
         <section className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 sm:p-6 shadow-xl backdrop-blur">
           <form onSubmit={handleSearch} className="flex flex-col md:flex-row gap-3">
             <div className="relative flex-1">
@@ -419,7 +419,7 @@ export default function WeatherApp() {
             </div>
           </form>
 
-          {/* Quick preset pills */}
+          {/* quick pills */}
           <div className="flex flex-wrap items-center gap-2 mt-3 pt-3 border-t border-slate-800/60">
             <span className="text-xs text-slate-400 flex items-center gap-1">
               <Compass className="w-3.5 h-3.5" /> Quick suggestions:
@@ -439,7 +439,7 @@ export default function WeatherApp() {
           </div>
         </section>
 
-        {/* Error Notification */}
+        {/* error banner */}
         {error && (
           <div className="p-4 rounded-xl bg-red-950/60 border border-red-500/30 text-red-200 flex items-start justify-between gap-3 text-sm animate-fadeIn">
             <div className="flex items-start gap-2.5">
@@ -455,10 +455,10 @@ export default function WeatherApp() {
           </div>
         )}
 
-        {/* Main Weather Display & 5-Day Forecast */}
+        {/* weather views */}
         {weather && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Primary Current Weather Card */}
+            {/* current weather card */}
             <div className="lg:col-span-2 space-y-6">
               <div className="bg-gradient-to-br from-slate-900 via-slate-900/90 to-sky-950/40 border border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
                 <div className="absolute right-0 top-0 w-96 h-96 bg-sky-500/5 rounded-full blur-3xl pointer-events-none" />
@@ -481,7 +481,7 @@ export default function WeatherApp() {
                     </p>
                   </div>
 
-                  {/* Bookmark Button for SQLite CRUD */}
+                  {/* save button */}
                   <button
                     onClick={() => setSaveModalOpen(true)}
                     className="px-3.5 py-2 rounded-xl bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 text-xs font-semibold flex items-center gap-1.5 transition"
@@ -491,7 +491,7 @@ export default function WeatherApp() {
                   </button>
                 </div>
 
-                {/* Big Temperature Hero Section */}
+                {/* temperature hero */}
                 <div className="flex flex-wrap items-center justify-between gap-6 my-6 pt-4 border-t border-slate-800/60">
                   <div className="flex items-center gap-6">
                     <div className="p-4 rounded-2xl bg-slate-800/40 border border-slate-700/50 shadow-inner">
@@ -510,7 +510,7 @@ export default function WeatherApp() {
                     </div>
                   </div>
 
-                  {/* High/Low & Day Indicator */}
+                  {/* min max daily */}
                   <div className="text-right text-xs text-slate-400 space-y-1 bg-slate-950/40 p-3 rounded-xl border border-slate-800/80">
                     <div>
                       Today Max: <span className="text-slate-200 font-semibold">{tempDisplay(weather.forecast[0]?.maxTemp || 0)}</span>
@@ -524,7 +524,7 @@ export default function WeatherApp() {
                   </div>
                 </div>
 
-                {/* Atmospheric Metric Grid */}
+                {/* metric cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div className="p-3 rounded-xl bg-slate-950/60 border border-slate-800 flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-sky-500/10 text-sky-400">
@@ -568,7 +568,7 @@ export default function WeatherApp() {
                 </div>
               </div>
 
-              {/* Section 1.1: 5-Day Organized Forecast */}
+              {/* 5-day forecast */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-bold text-white flex items-center gap-2">
@@ -617,7 +617,7 @@ export default function WeatherApp() {
                 </div>
               </div>
 
-              {/* 24-Hour Hourly Forecast Scroll */}
+              {/* hourly forecast */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-6 shadow-xl">
                 <h3 className="text-sm font-bold text-slate-200 mb-3 flex items-center gap-2">
                   <Wind className="w-4 h-4 text-sky-400" />
@@ -647,9 +647,9 @@ export default function WeatherApp() {
               </div>
             </div>
 
-            {/* Spatial Map & Database CRUD Column (Assessment 2) */}
+            {/* map and sidebar */}
             <div className="space-y-6">
-              {/* Interactive OpenStreetMap Embed */}
+              {/* map embed */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 shadow-xl">
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -688,7 +688,7 @@ export default function WeatherApp() {
                 </p>
               </div>
 
-              {/* Database CRUD & Persistence Panel (Assessment 2.1) */}
+              {/* favorites and history tabs */}
               <div className="bg-slate-900/80 border border-slate-800 rounded-2xl p-5 shadow-xl">
                 <div className="flex items-center justify-between pb-3 border-b border-slate-800">
                   <div className="flex items-center gap-2">
@@ -714,7 +714,7 @@ export default function WeatherApp() {
                     </button>
                   </div>
 
-                  {/* Export Options (Assessment 2.3) */}
+                  {/* export buttons */}
                   <div className="flex items-center gap-1">
                     <a
                       href="/api/export?format=json"
@@ -743,7 +743,7 @@ export default function WeatherApp() {
                   </div>
                 </div>
 
-                {/* CRUD Favorites List */}
+                {/* favorites list */}
                 {activeTab === "favorites" ? (
                   <div className="mt-4 space-y-2.5 max-h-80 overflow-y-auto pr-1">
                     {favorites.length === 0 ? (
@@ -794,7 +794,7 @@ export default function WeatherApp() {
                             </div>
                           </div>
 
-                          {/* Editable note section */}
+                          {/* inline note editing */}
                           {editingId === fav.id ? (
                             <div className="mt-2 space-y-2 pt-2 border-t border-slate-800">
                               <input
@@ -836,8 +836,8 @@ export default function WeatherApp() {
                     )}
                   </div>
                 ) : (
-                  /* History Tab */
                   <div className="mt-4 space-y-2 max-h-80 overflow-y-auto pr-1">
+                    {/* history list */}
                     <div className="flex justify-between items-center mb-2">
                       <span className="text-[10px] text-slate-400">Recent SQLite logs</span>
                       <button
@@ -883,7 +883,7 @@ export default function WeatherApp() {
         )}
       </main>
 
-      {/* Save to Favorites Modal */}
+      {/* save modal */}
       {saveModalOpen && weather && (
         <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4 z-50">
           <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-4">

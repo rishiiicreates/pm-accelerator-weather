@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFavorites, getHistory } from "../../../lib/db";
 
-// GET /api/export?format=json|csv|markdown&type=favorites|history|all
+// exports sqlite data to json csv or markdown
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);

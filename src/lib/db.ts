@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 
-// Initialize SQLite database in data directory
+// sqlite database stored locally in data folder
 const DATA_DIR = path.join(process.cwd(), "data");
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
@@ -21,7 +21,7 @@ export function getDatabase(): DatabaseSync {
 }
 
 function initTables(db: DatabaseSync) {
-  // Favorites table for CRUD persistence
+  // favorites table for storing pinned locations
   db.exec(`
     CREATE TABLE IF NOT EXISTS favorites (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -36,7 +36,7 @@ function initTables(db: DatabaseSync) {
     );
   `);
 
-  // History table for search persistence and analytics
+  // search history log
   db.exec(`
     CREATE TABLE IF NOT EXISTS search_history (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -76,7 +76,7 @@ export interface HistoryItem {
   searched_at?: string;
 }
 
-// CRUD Operations for Favorites
+// read all saved favorites
 export function getFavorites(): FavoriteItem[] {
   const db = getDatabase();
   const stmt = db.prepare("SELECT * FROM favorites ORDER BY id DESC");
@@ -89,6 +89,7 @@ export function getFavoriteById(id: number): FavoriteItem | undefined {
   return stmt.get(id) as unknown as FavoriteItem | undefined;
 }
 
+// save new favorite
 export function createFavorite(item: FavoriteItem): FavoriteItem {
   const db = getDatabase();
   const stmt = db.prepare(`
@@ -101,6 +102,7 @@ export function createFavorite(item: FavoriteItem): FavoriteItem {
   return { ...item, id: lastId.id, created_at: new Date().toISOString() };
 }
 
+// update favorite note or tag
 export function updateFavorite(id: number, data: Partial<FavoriteItem>): boolean {
   const db = getDatabase();
   const existing = getFavoriteById(id);
@@ -119,6 +121,7 @@ export function updateFavorite(id: number, data: Partial<FavoriteItem>): boolean
   return true;
 }
 
+// remove favorite
 export function deleteFavorite(id: number): boolean {
   const db = getDatabase();
   const stmt = db.prepare("DELETE FROM favorites WHERE id = ?");
@@ -126,7 +129,7 @@ export function deleteFavorite(id: number): boolean {
   return true;
 }
 
-// Search History operations
+// log query to search history
 export function recordHistory(item: HistoryItem): void {
   const db = getDatabase();
   const stmt = db.prepare(`
@@ -136,6 +139,7 @@ export function recordHistory(item: HistoryItem): void {
   stmt.run(item.query, item.location_name, item.country, item.lat, item.lon, item.temp_c, item.condition_text);
 }
 
+// get recent queries
 export function getHistory(limit = 25): HistoryItem[] {
   const db = getDatabase();
   const stmt = db.prepare("SELECT * FROM search_history ORDER BY id DESC LIMIT ?");

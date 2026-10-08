@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateFavorite, deleteFavorite, getFavoriteById } from "../../../../lib/db";
 
-// PUT /api/favorites/[id] - Update favorite item (CRUD: Update)
+// update favorite note or tag
 export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -26,7 +26,10 @@ export async function PUT(
   }
 }
 
-// DELETE /api/favorites/[id] - Delete favorite item (CRUD: Delete)
+// allow patch as well as put
+export const PATCH = PUT;
+
+// delete single favorite item
 export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }

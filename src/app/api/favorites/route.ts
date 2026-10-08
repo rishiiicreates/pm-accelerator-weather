@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getFavorites, createFavorite } from "../../../lib/db";
 
-// GET /api/favorites - Read all saved locations
+// get saved locations
 export async function GET() {
   try {
     const list = getFavorites();
@@ -11,15 +11,17 @@ export async function GET() {
   }
 }
 
-// POST /api/favorites - Create a new favorite location (CRUD: Create)
+// add location to favorites
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { name, country, lat, lon, notes, tag } = body;
+    const { name, country, notes, tag } = body;
+    const rawLat = body.lat !== undefined ? body.lat : body.latitude;
+    const rawLon = body.lon !== undefined ? body.lon : body.longitude;
 
-    if (!name || lat === undefined || lon === undefined) {
+    if (!name || rawLat === undefined || rawLon === undefined) {
       return NextResponse.json(
-        { error: "Missing required fields: name, lat, and lon." },
+        { error: "Missing required fields: name, lat/latitude, and lon/longitude." },
         { status: 400 }
       );
     }
@@ -27,8 +29,8 @@ export async function POST(req: NextRequest) {
     const created = createFavorite({
       name,
       country: country || "",
-      lat: Number(lat),
-      lon: Number(lon),
+      lat: Number(rawLat),
+      lon: Number(rawLon),
       notes: notes || "",
       tag: tag || "Favorite",
     });

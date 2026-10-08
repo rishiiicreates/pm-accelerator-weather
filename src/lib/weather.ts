@@ -67,7 +67,7 @@ export interface GeocodingResult {
 export async function geocodeLocation(query: string): Promise<GeocodingResult | null> {
   const trimmed = query.trim();
 
-  // Check if user entered direct GPS coordinates: "lat, lon" or "lat lon"
+  // direct gps coords regex check
   const coordRegex = /^[-+]?([1-8]?\d(\.\d+)?|90(\.0+)?),\s*[-+]?(180(\.0+)?|((1[0-7]\d)|([1-9]?\d))(\.\d+)?)$/;
   if (coordRegex.test(trimmed)) {
     const [latStr, lonStr] = trimmed.split(",").map((s) => s.trim());
@@ -81,7 +81,7 @@ export async function geocodeLocation(query: string): Promise<GeocodingResult | 
     };
   }
 
-  // Use Open-Meteo Geocoding
+  // open-meteo geocoding lookup
   try {
     const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(
       trimmed
@@ -108,7 +108,7 @@ export async function geocodeLocation(query: string): Promise<GeocodingResult | 
     console.error("Open-Meteo geocoding error:", err);
   }
 
-  // Secondary Fallback for Zip codes / Postal codes via OpenStreetMap Nominatim
+  // fallback to nominatim for zip codes or postal areas
   try {
     const nominatimUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(
       trimmed
