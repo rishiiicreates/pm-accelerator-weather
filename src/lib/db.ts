@@ -1,26 +1,46 @@
-import { DatabaseSync } from "node:sqlite";
 import path from "node:path";
 import fs from "node:fs";
 
-// sqlite database stored locally in data folder
-const DATA_DIR = path.join(process.cwd(), "data");
+// database path with vercel tmp directory support
+const DATA_DIR = process.env.VERCEL ? "/tmp" : path.join(process.cwd(), "data");
+
 if (!fs.existsSync(DATA_DIR)) {
-  fs.mkdirSync(DATA_DIR, { recursive: true });
+  try {
+    fs.mkdirSync(DATA_DIR, { recursive: true });
+  } catch (err) {
+    // fallback if directory creation is restricted
+  }
 }
 
 const DB_PATH = path.join(DATA_DIR, "weather.sqlite");
 
-let dbInstance: DatabaseSync | null = null;
+// in-memory fallback storage in case serverless environment doesn't allow sqlite
+let memoryFavorites: FavoriteItem[] = [];
+let memoryHistory: HistoryItem[] = [];
+let memoryIdCounter = 1;
 
-export function getDatabase(): DatabaseSync {
-  if (!dbInstance) {
+let dbInstance: any = null;
+let useMemoryFallback = false;
+
+// dynamically initialize sqlite or fallback to memory
+function getDatabase() {
+  if (useMemoryFallback) return null;
+  if (dbInstance) return dbInstance;
+
+  try {
+    // try importing and initializing node:sqlite
+    const { DatabaseSync } = require("node:sqlite");
     dbInstance = new DatabaseSync(DB_PATH);
     initTables(dbInstance);
+    return dbInstance;
+  } catch (err) {
+    // if sqlite is unavailable in serverless environment, switch to in-memory store
+    useMemoryFallback = true;
+    return null;
   }
-  return dbInstance;
 }
 
-function initTables(db: DatabaseSync) {
+function initTables(db: any) {
   // favorites table for storing pinned locations
   db.exec(`
     CREATE TABLE IF NOT EXISTS favorites (
@@ -79,12 +99,18 @@ export interface HistoryItem {
 // read all saved favorites
 export function getFavorites(): FavoriteItem[] {
   const db = getDatabase();
+  if (!db) {
+    return [...memoryFavorites].reverse();
+  }
   const stmt = db.prepare("SELECT * FROM favorites ORDER BY id DESC");
   return stmt.all() as unknown as FavoriteItem[];
 }
 
 export function getFavoriteById(id: number): FavoriteItem | undefined {
   const db = getDatabase();
+  if (!db) {
+    return memoryFavorites.find((f) => f.id === id);
+  }
   const stmt = db.prepare("SELECT * FROM favorites WHERE id = ?");
   return stmt.get(id) as unknown as FavoriteItem | undefined;
 }
@@ -92,6 +118,19 @@ export function getFavoriteById(id: number): FavoriteItem | undefined {
 // save new favorite
 export function createFavorite(item: FavoriteItem): FavoriteItem {
   const db = getDatabase();
+  const now = new Date().toISOString();
+
+  if (!db) {
+    const newItem: FavoriteItem = {
+      ...item,
+      id: memoryIdCounter++,
+      created_at: now,
+      updated_at: now,
+    };
+    memoryFavorites.push(newItem);
+    return newItem;
+  }
+
   const stmt = db.prepare(`
     INSERT INTO favorites (name, country, lat, lon, notes, tag)
     VALUES (?, ?, ?, ?, ?, ?)
@@ -99,7 +138,7 @@ export function createFavorite(item: FavoriteItem): FavoriteItem {
   stmt.run(item.name, item.country, item.lat, item.lon, item.notes || "", item.tag || "General");
   
   const lastId = db.prepare("SELECT last_insert_rowid() as id").get() as { id: number };
-  return { ...item, id: lastId.id, created_at: new Date().toISOString() };
+  return { ...item, id: lastId.id, created_at: now };
 }
 
 // update favorite note or tag
@@ -111,6 +150,14 @@ export function updateFavorite(id: number, data: Partial<FavoriteItem>): boolean
   const notes = (data.notes !== undefined ? data.notes : existing.notes) ?? "";
   const tag = (data.tag !== undefined ? data.tag : existing.tag) ?? "General";
   const name = (data.name !== undefined ? data.name : existing.name) ?? "";
+
+  if (!db) {
+    existing.name = name;
+    existing.notes = notes;
+    existing.tag = tag;
+    existing.updated_at = new Date().toISOString();
+    return true;
+  }
 
   const stmt = db.prepare(`
     UPDATE favorites
@@ -124,6 +171,11 @@ export function updateFavorite(id: number, data: Partial<FavoriteItem>): boolean
 // remove favorite
 export function deleteFavorite(id: number): boolean {
   const db = getDatabase();
+  if (!db) {
+    const prevLen = memoryFavorites.length;
+    memoryFavorites = memoryFavorites.filter((f) => f.id !== id);
+    return memoryFavorites.length < prevLen;
+  }
   const stmt = db.prepare("DELETE FROM favorites WHERE id = ?");
   stmt.run(id);
   return true;
@@ -132,6 +184,17 @@ export function deleteFavorite(id: number): boolean {
 // log query to search history
 export function recordHistory(item: HistoryItem): void {
   const db = getDatabase();
+  const now = new Date().toISOString();
+
+  if (!db) {
+    memoryHistory.push({
+      ...item,
+      id: memoryHistory.length + 1,
+      searched_at: now,
+    });
+    return;
+  }
+
   const stmt = db.prepare(`
     INSERT INTO search_history (query, location_name, country, lat, lon, temp_c, condition_text)
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -142,12 +205,19 @@ export function recordHistory(item: HistoryItem): void {
 // get recent queries
 export function getHistory(limit = 25): HistoryItem[] {
   const db = getDatabase();
+  if (!db) {
+    return [...memoryHistory].reverse().slice(0, limit);
+  }
   const stmt = db.prepare("SELECT * FROM search_history ORDER BY id DESC LIMIT ?");
   return stmt.all(limit) as unknown as HistoryItem[];
 }
 
 export function deleteHistoryItem(id: number): boolean {
   const db = getDatabase();
+  if (!db) {
+    memoryHistory = memoryHistory.filter((h) => h.id !== id);
+    return true;
+  }
   const stmt = db.prepare("DELETE FROM search_history WHERE id = ?");
   stmt.run(id);
   return true;
@@ -155,6 +225,10 @@ export function deleteHistoryItem(id: number): boolean {
 
 export function clearHistory(): boolean {
   const db = getDatabase();
+  if (!db) {
+    memoryHistory = [];
+    return true;
+  }
   db.exec("DELETE FROM search_history");
   return true;
 }
